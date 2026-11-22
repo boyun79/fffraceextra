@@ -330,6 +330,36 @@ h1,h2,h3,.lab-brand{color:#FFFFFF!important}.lab-brand b{color:#FF3158!important
 [data-testid="stTextInput"] input:disabled,[data-testid="stNumberInput"] input:disabled{background:#EEEEEE!important;color:#444444!important;-webkit-text-fill-color:#444444!important}
 
 @media(max-width:700px){[data-testid="stMainBlockContainer"]{padding:1rem .8rem 2rem}.lab-brand{font-size:19px}}
+
+/* Explicit surface contracts: dark panels, light editable controls. */
+.stApp{color:#D5DCE5!important;color-scheme:dark}
+.stApp h1,.stApp h2,.stApp h3,.stApp h4{color:#FFFFFF!important}
+.stApp [data-testid="stMarkdownContainer"] p,.stApp [data-testid="stMarkdownContainer"] li,
+[data-testid="stCaptionContainer"],[data-testid="stWidgetLabel"] p{color:#D5DCE5!important}
+[data-testid="stTextInput"] [data-baseweb="input"], [data-testid="stNumberInput"] [data-baseweb="input"],
+[data-baseweb="input"]>div,[data-baseweb="select"]>div{background:#FFFFFF!important;color:#111111!important;color-scheme:light!important}
+.stApp input:not([type="range"]):not([type="checkbox"]),.stApp textarea,
+[data-baseweb="select"] [role="combobox"], [data-baseweb="select"]>div *{
+background-color:#FFFFFF!important;color:#111111!important;-webkit-text-fill-color:#111111!important;caret-color:#111111!important}
+input::placeholder,textarea::placeholder{color:#666666!important;-webkit-text-fill-color:#666666!important;opacity:1!important}
+[data-baseweb="popover"] [role="listbox"],[data-baseweb="popover"] [role="option"],
+[data-baseweb="popover"] [role="option"] *,[data-baseweb="menu"],[data-baseweb="menu"] li,[data-baseweb="menu"] li *{
+background:#FFFFFF!important;color:#111111!important;-webkit-text-fill-color:#111111!important}
+[data-baseweb="popover"] [role="option"]:hover,[data-baseweb="menu"] li:hover{background:#e3eaf2!important}
+[data-testid="stSlider"] p,[data-testid="stSliderThumbValue"],[data-testid="stTickBar"] *,
+[data-testid="stSlider"] [data-testid="stWidgetLabel"] *{color:#D5DCE5!important;-webkit-text-fill-color:#D5DCE5!important}
+[data-testid="stTooltipContent"]{background:#142031!important;color:#FFFFFF!important}
+[data-testid="stAlert"], [data-testid="stExpander"], [data-testid="stTable"]{background:#101923!important;color:#D5DCE5!important;border-color:#435469!important}
+[data-testid="stAlert"] *,[data-testid="stExpander"] summary *,[data-testid="stMetricLabel"] *,[data-testid="stMetricValue"] *{color:#D5DCE5!important}
+[data-testid="stTable"] th,[data-testid="stTable"] td,.stApp table th,.stApp table td{background:#101923!important;color:#D5DCE5!important;border-color:#435469!important}
+[data-testid="stButton"] button,[data-testid="stDownloadButton"] button,[data-testid="stFormSubmitButton"] button{background-color:#142031;color:#FFFFFF!important}
+[data-testid="stButton"] button *,[data-testid="stDownloadButton"] button *,[data-testid="stFormSubmitButton"] button *{color:#FFFFFF!important;-webkit-text-fill-color:#FFFFFF!important}
+[data-testid="stNumberInput"] button,[data-testid="stNumberInput"] button *{background:#FFFFFF!important;color:#111111!important;-webkit-text-fill-color:#111111!important}
+[data-testid="stJson"]{background:#101923!important;color:#D5DCE5!important}
+[data-testid="stJson"] span,[data-testid="stJson"] li{color:#D5DCE5!important}
+.perf-help,.option-desc,.setup-sub,.center-note,.footnote,.option-mini,.step{color:#BAC7D6!important}
+.why,.result-line,.change-table,.change-row,.part-role,.lab-note,.lab-tag,.lab-section{color:#D5DCE5!important}
+.same{color:#BAC7D6!important}
 </style>"""
 
 
@@ -340,13 +370,13 @@ PREVIEW_HTML = r'''<!doctype html><html lang="ko"><head><meta charset="utf-8">
 *{box-sizing:border-box}html,body,#root{margin:0;width:100%;height:100%;overflow:hidden;background:#090e15;color:#d5e4f2;font-family:Arial,sans-serif}
 #root{background:radial-gradient(ellipse at 50% 40%,#223345,#090e15 75%)}canvas{display:block;touch-action:none}
 #hint,#status{position:absolute;left:14px;right:14px;font-size:11px;line-height:1.7;pointer-events:none}
-#hint{bottom:12px;color:#a9bdce}#status{top:12px;color:#9bdff3}
+#hint{bottom:12px;color:#D5DCE5}#status{top:12px;color:#D5DCE5}
 #status.error{color:#ff849a;background:#24131c;border:1px solid #92374b;padding:10px}
 #camera{position:absolute;right:12px;bottom:12px;color:#e3eef9;background:#101c29;border:1px solid #41556b;padding:7px;cursor:pointer}
 </style>
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.164.1/build/three.module.js","three/addons/":"https://unpkg.com/three@0.164.1/examples/jsm/"}}</script>
 </head><body><div id="root"></div><div id="status">3D 모듈을 불러오는 중…</div>
-<div id="hint">DRAG 회전 · WHEEL 확대/축소<br>게임용 절차적 모델 / 실제 CAD·CFD 아님</div><button id="camera">시점 초기화</button>
+<div id="hint">DRAG 회전 · WHEEL 확대/축소</div><button id="camera">시점 초기화</button>
 <script type="module">
 const cfg=__CONFIG__,root=document.getElementById('root'),status=document.getElementById('status');
 const fail=message=>{status.textContent=message;status.className='error'};
@@ -447,7 +477,7 @@ try{
  resizeObserver=new ResizeObserver(resize);resizeObserver.observe(root);resize();
  renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();cancelAnimationFrame(raf);fail('WebGL 연결이 중단되었습니다. 설정을 변경해 미리보기를 다시 불러와 주세요.')});
  const tick=()=>{if(disposed)return;raf=requestAnimationFrame(tick);controls.update();renderer.render(scene,camera)};tick();
- clearTimeout(timeout);status.textContent=cfg.name+' / PARAMETRIC 3D · 공기 흐름 애니메이션 미구현';
+ clearTimeout(timeout);status.textContent=cfg.name+' / PARAMETRIC 3D';
 }catch(error){clearTimeout(timeout);fail('3D 미리보기를 시작하지 못했습니다. 인터넷/CDN 접근 및 WebGL 설정을 확인해 주세요. 성능 계산과 저장은 계속 사용할 수 있습니다.');}
 window.addEventListener('pagehide',()=>{disposed=true;clearTimeout(timeout);cancelAnimationFrame(raf);resizeObserver?.disconnect();controls?.dispose();scene?.traverse(o=>{o.geometry?.dispose();if(o.material)(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.dispose())});renderer?.dispose()},{once:true});
 </script></body></html>'''
@@ -481,27 +511,64 @@ def render_controls(kind):
         st.caption("램프 상승각은 입구–출구 평균 각도입니다. 곡면 램프의 끝단 접선각과는 다릅니다.")
 
 
+def display_number(value, signed=False):
+    """표시만 1자리로 정리합니다. 원본 계산값은 변경하지 않습니다."""
+    shown = round(float(value), 1)
+    if shown == 0:
+        return "0"
+    text = f"{abs(shown):.1f}".rstrip("0").rstrip(".")
+    return ("-" if shown < 0 else "+" if signed else "") + text
+
+
+def describe_deltas(changes):
+    rising, falling = [], []
+    for label, delta in changes.items():
+        # 표시 정밀도보다 작은 변화는 증가/감소로 과장하지 않습니다.
+        if abs(delta) < 0.05:
+            continue
+        text = f"{label} {display_number(delta, signed=True)}"
+        (rising if delta > 0 else falling).append(text)
+    lines = []
+    if rising:
+        lines.append("증가: " + ", ".join(rising) + ".")
+    if falling:
+        lines.append("감소: " + ", ".join(falling) + ".")
+    return " ".join(lines) or "표시 정밀도(소수점 첫째 자리)에서 성능 변화가 없습니다."
+
+
+def describe_parameters(kind, params):
+    changes = []
+    for field, spec in SPECS[kind]["fields"].items():
+        label, low, high, default, step, unit = spec
+        if params[field] != default:
+            changes.append(f"{label} {display_number(default)}→{display_number(params[field])}{unit}")
+    return "기본 설정 대비 변경: " + ", ".join(changes) + "." if changes else "기본 제작 설정을 사용 중입니다."
+
+
 def render_performance(kind, params):
     current = calculate_aero(kind, params)
     baseline = calculate_aero(kind, defaults(kind))
     columns = st.columns(3)
-    with columns[0]:
-        st.metric("예상 다운포스 / 100", f"{current['downforce']:.1f}",
-                  f"{current['downforce'] - baseline['downforce']:+.1f}")
-    with columns[1]:
-        st.metric("예상 항력 / 100", f"{current['drag']:.1f}",
-                  f"{current['drag'] - baseline['drag']:+.1f}", delta_color="inverse")
-    with columns[2]:
-        st.metric("공기역학 효율 · 지표비", f"{current['efficiency']:.2f}",
-                  f"{current['efficiency'] - baseline['efficiency']:+.2f}")
-    st.caption("차량 적용 점수(다운포스/최고속도/코너링/그립/제동/안정성): " + " / ".join(str(x) for x in score_vector(kind, params)))
-    st.caption("변화량은 해당 파츠의 기본값 대비입니다. 효율 = 다운포스 지표 ÷ 항력 지표. 실제 양항비가 아닙니다.")
+    for column, key, label in zip(columns, ["downforce", "drag", "efficiency"],
+                                 ["예상 다운포스 / 100", "예상 항력 / 100", "공기역학 효율 · 지표비"]):
+        with column:
+            st.metric(label, display_number(current[key]),
+                      display_number(current[key]-baseline[key], signed=True),
+                      delta_color="inverse" if key == "drag" else "normal")
+    scores = score_vector(kind, params)
+    st.caption("차량 적용 점수(다운포스/최고속도/코너링/그립/제동/안정성): " + " / ".join(display_number(x) for x in scores))
+    st.caption("변화량은 해당 파츠의 기본 제작 설정 대비입니다.")
+    st.markdown("### 성능 변화 분석")
+    st.write(describe_parameters(kind, params))
+    st.write(describe_deltas({"예상 다운포스": current["downforce"]-baseline["downforce"],
+                              "예상 항력": current["drag"]-baseline["drag"],
+                              "효율": current["efficiency"]-baseline["efficiency"]}))
+    labels = ["다운포스", "최고속도", "코너링", "그립", "제동", "안정성"]
+    st.write("차량 적용 점수 · " + describe_deltas(dict(zip(labels, [a-b for a,b in zip(scores, BASE_SCORES[kind])]))))
     if current["separation_risk"] > 0:
-        st.warning("큰 각도에 따른 게임용 손실 페널티가 적용 중입니다. 각도를 더 높여도 다운포스가 계속 증가하지 않을 수 있습니다.")
-    with st.expander("예상치의 의미와 모델 한계"):
-        st.write("같은 설정값을 3D 형상과 성능 계산에 함께 사용합니다. 치수·각도 등에 따른 경향을 임의의 수식으로 비교하며, 결과는 0~100으로 제한합니다. 포화 구간에서는 형상이 변해도 점수가 같을 수 있습니다.")
-        st.write("실제 압력·힘(N)·항력계수·속도·랩타임을 계산하지 않습니다. 공력 예상치는 기존 균형형 대비 상대 변화로 6개 차량 점수에 연결됩니다. 항력은 최고속도 점수로 반영하며, 실제 CFD와 파츠 간 상호작용은 미구현입니다.")
-        st.write("공기 흐름은 확장용 데이터만 준비되어 있습니다. 현재 입자 애니메이션이나 유체 해석은 제공하지 않습니다.")
+        st.warning("현재 각도에 따른 손실 페널티가 적용 중입니다. 각도를 더 높여도 다운포스가 계속 증가하지 않을 수 있습니다.")
+
+
 
 
 def render_storage(kind, params):
@@ -584,7 +651,7 @@ def main():
     if st.button("🔧 차량 설계 화면으로 돌아가기", key=f"{NS}:garage", use_container_width=True):
         return_to_garage()
     st.caption("GARAGE → PARTS LAB · 기존 차량 설정을 유지한 채 제작할 수 있습니다.")
-    st.markdown('<div class="lab-note">나만의 공기역학 파츠를 설계하세요. 치수와 각도를 바꾸면 3D 형상과 예상 지표가 함께 바뀝니다.<br><b>게임 내 근사 예상치이며 실제 CFD 또는 물리적으로 검증된 설계 도구가 아닙니다.</b></div>', unsafe_allow_html=True)
+    st.markdown('<div class="lab-note">나만의 공기역학 파츠를 설계하세요. 치수와 각도를 바꾸면 3D 형상과 예상 지표가 함께 바뀝니다.</div>', unsafe_allow_html=True)
     # 불러오기 콜백은 아래 위젯이 만들어지기 전에 실행됩니다.
     kind = st.selectbox("제작할 파츠", list(SPECS), key=f"{NS}:kind",
                         format_func=lambda key: SPECS[key]["name"] + " · " + SPECS[key]["ko"])
