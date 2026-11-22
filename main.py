@@ -1,14 +1,19 @@
 """F1 Racing Simulator Garage
 실행: streamlit run main.py
-필수 패키지: streamlit
+필수 패키지: streamlit>=1.41 (기존 Streamlit 라이브러리만 사용)
 3D 렌더링: Streamlit HTML 컴포넌트 내부의 Three.js.
 
-
+기존 전체 차량 설계에 사용자 제작 옵션/공통 geometry/레이스 런타임 연결을 추가합니다.
+기본 부품 점수와 기존 평균 성능 계산은 유지합니다.
+racing.py와 chat.py의 디스크 파일은 수정하지 않습니다.
+사용자 제작 파츠 레이스는 반드시 이 main.py의 시작 버튼을 사용합니다.
 """
 import html
 import json
 import math
 import re
+import importlib.util
+from pathlib import Path
 from copy import deepcopy
 
 import streamlit as st
@@ -42,7 +47,7 @@ def make_option(label, scores, stars, color, explanation, shape=1.0):
             "explanation": explanation, "shape": shape}
 
 
-def get_part_data():
+def get_base_part_data():
     """기존 부품 키, 옵션 순서, 점수와 시각화 수치를 유지합니다."""
     return {
         "front_wing": {"name": "Front Wing", "ko": "프론트 윙", "icon": "⌁", "part": "frontWing", "options": {
@@ -82,6 +87,100 @@ def get_part_data():
             "balanced": make_option("BALANCED", [61,88,80,71,68,86], [4,4,4], "#ffb21a", "전기 에너지 사용과 회수를 균형 있게 관리해요."),
             "recovery": make_option("RECOVERY", [60,80,76,70,78,91], [3,4,4], "#27d6ff", "감속할 때 운동 에너지를 전기로 더 많이 되찾아요.")}},
     }
+
+
+
+def parts_lab_module():
+    """화면 실행 없이 parts.py의 검증/점수/공통 geometry 함수만 사용합니다."""
+    path = Path(__file__).resolve().parent / "pages" / "parts.py"
+    spec = importlib.util.spec_from_file_location("f1_parts_shared", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("pages/parts.py를 찾을 수 없습니다.")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def get_part_data():
+    parts = get_base_part_data()
+    lab = parts_lab_module()
+    for ident, record in lab.library_records().items():
+        kind = record["part_type"]
+        option = make_option(record["name"], list(record["scores"]), [4,4,4], "#ff3158",
+                             "사용자 제작 파츠 · 저장된 형상과 공력 예상치를 차량 점수에 연결합니다.")
+        option["custom"] = record
+        parts[kind]["options"]["custom_"+ident] = option
+    return parts
+
+
+def custom_visual(option):
+    if "custom" not in option:
+        return None
+    record = option["custom"]
+    return {"part_type": record["part_type"], "parameters": record["parameters"]}
+
+
+def start_race():
+    # 기본 차량은 원래 페이지 경로를 그대로 사용합니다.
+    if parts_lab_module().library_records() or any(str(v).startswith("custom_") for v in st.session_state.get("my_car_config", {}).values()):
+        st.session_state["app_view"] = "custom_race"
+        st.rerun()
+    else:
+        st.switch_page("pages/racing.py")
+
+
+def configure_race_module(race):
+    """기존 racing.py의 계산/AI/트랙을 그대로 사용하고 옵션/형상만 연결합니다.
+    디스크의 racing.py는 수정하지 않습니다. 버전별 필수 인터페이스는 검증합니다.
+    """
+    required = ["GARAGE_VISUAL_OPTIONS", "BUILDER_JS", "garage_rules", "main"]
+    if any(not hasattr(race, name) for name in required):
+        raise RuntimeError("racing.py 인터페이스가 제공된 버전과 다릅니다.")
+    parts = get_part_data()
+    for kind, part in parts.items():
+        for key, option in part["options"].items():
+            if "custom" in option:
+                race.GARAGE_VISUAL_OPTIONS[kind]["options"][key] = {
+                    "color": option["color"], "shape": 1.0, "variant": 1,
+                    "custom": custom_visual(option),
+                }
+    race.garage_rules = lambda: (get_part_data(), calculate_car_performance)
+    bridge = parts_lab_module().custom_geometry_js() + r"""
+const f1OriginalCarFactory=createF1Car;
+createF1Car=function(color,cfg){
+ const car=f1OriginalCarFactory(color,cfg);
+ for(const [meshName,option] of Object.entries(cfg)){
+  if(!option.custom)continue;
+  const target=car.children.find(g=>g.userData.part===meshName);
+  if(!target)throw new Error('Missing car part: '+meshName);
+  target.traverse(o=>{if(o.isMesh)o.geometry.dispose()});target.clear();
+  mountCustomPart(target,option.custom);
+ }
+ return car;
+};
+"""
+    race.BUILDER_JS += "\n" + bridge
+    return race
+
+
+def run_custom_race():
+    # main() 호출 전이므로 racing.main()의 set_page_config가 첫 화면 설정입니다.
+    path = Path(__file__).resolve().parent / "pages" / "racing.py"
+    try:
+        spec = importlib.util.spec_from_file_location("f1_custom_race_runtime", path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError("pages/racing.py를 찾을 수 없습니다.")
+        race = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(race)
+        configure_race_module(race)
+    except (OSError, ImportError, SyntaxError, RuntimeError, AttributeError, KeyError) as error:
+        st.error("기존 레이스 모듈을 연결하지 못했습니다. racing.py의 파일 경로·문법·버전을 확인해 주세요.")
+        st.caption(str(error))
+        if st.button("차량 설계로 돌아가기"):
+            st.session_state["app_view"] = "garage"
+            st.rerun()
+        return
+    race.main()
 
 
 def calculate_car_performance(parts, selections):
@@ -132,6 +231,12 @@ h1,h2,h3,.race{font-family:'Oxanium','Noto Sans KR',sans-serif}
 .change-table{margin:10px 0;border:1px solid #293542;background:#0b1016}.change-row{display:grid;grid-template-columns:1.35fr .8fr .8fr .65fr;padding:7px 9px;border-bottom:1px solid #202a34;font:600 11px 'Oxanium'}.change-row:last-child{border-bottom:0}.result-line{padding:12px;background:linear-gradient(90deg,#17251f,#10161d);border:1px solid #2b5947;color:#d8f7e9;font-size:12px;line-height:1.6}.flow-arrow{text-align:center;color:#27d6ff;font:700 18px 'Oxanium';margin:-3px 0 1px}
 @media(max-width:1000px){.intro{flex-wrap:wrap}.garage-head{position:static;flex-wrap:wrap}}
 @media(max-width:800px){[data-testid="stMainBlockContainer"]{padding:0 .65rem 1.4rem!important}}
+
+.st-key-parts_cta{margin:18px 0 22px!important;padding:10px 0!important;width:100%!important}
+.stApp .st-key-parts_cta div[data-testid="stButton"] button{min-height:92px!important;width:100%!important;padding:18px 12px!important;background:linear-gradient(120deg,#c91439,#ff3158)!important;border:2px solid #ff8199!important;box-shadow:0 7px 24px #ff31583d!important;font-size:16px!important;line-height:1.6!important;text-align:center!important}
+.stApp .st-key-parts_cta div[data-testid="stButton"] button *{color:#FFFFFF!important;-webkit-text-fill-color:#FFFFFF!important;font-size:16px!important;font-weight:800!important}
+.stApp .st-key-parts_cta div[data-testid="stButton"] button:hover{background:linear-gradient(120deg,#ed214b,#ff5878)!important;border-color:#FFFFFF!important;box-shadow:0 8px 30px #ff315870!important;transform:translateY(-1px)}
+.stApp .st-key-parts_cta div[data-testid="stButton"] button:focus-visible{outline:3px solid #FFFFFF!important;outline-offset:3px}
 </style>""", unsafe_allow_html=True)
 
 
@@ -197,8 +302,23 @@ def build_3d_html(parts, selections, active_part):
     visual = {}
     for key, selected in selections.items():
         option = parts[key]["options"][selected]
-        visual[parts[key]["part"]] = {"color": option["color"], "shape": option["shape"], "key": key, "variant": list(parts[key]["options"]).index(selected)}
-    return CAR_HTML.replace("__VISUAL__", json.dumps(visual, ensure_ascii=False).replace("<", "\\u003c")).replace("__ACTIVE__", json.dumps(active_part))
+        visual[parts[key]["part"]] = {"color": option["color"], "shape": option["shape"], "key": key,
+            "variant": 1 if "custom" in option else list(parts[key]["options"]).index(selected),
+            "custom": custom_visual(option)}
+    inject = parts_lab_module().custom_geometry_js() + r"""
+for(const [meshName,option] of Object.entries(cfg)){
+ if(!option.custom)continue;
+ const target=partGroups[meshName];
+ for(let i=pickable.length-1;i>=0;i--)if(pickable[i].userData.part===meshName)pickable.splice(i,1);
+ target.traverse(o=>{if(o.isMesh)o.geometry.dispose()});target.clear();
+ mountCustomPart(target,option.custom);
+ target.traverse(o=>{if(o.isMesh){o.userData.part=meshName;o.castShadow=true;o.receiveShadow=true;pickable.push(o)}});
+}
+"""
+    document = CAR_HTML.replace("const descriptions=", inject+"\nconst descriptions=", 1)
+    document = document.replace("m.parent===activeGroup", "m.userData.part===active3d").replace("obj.parent===activeGroup", "obj.userData.part===active3d")
+    return document.replace("__VISUAL__", json.dumps(visual, ensure_ascii=False).replace("<", "\\u003c")).replace("__ACTIVE__", json.dumps(active_part))
+
 
 
 def render_3d_car(parts, selections, active_part):
@@ -271,10 +391,14 @@ function tick(){requestAnimationFrame(tick);controls.update();renderer.render(sc
 def build_part_preview_html(parts, selections, active_part):
     data = parts[active_part]
     option = data["options"][selections[active_part]]
+    if "custom" in option:
+        record = option["custom"]
+        return parts_lab_module().build_preview_html(record["part_type"], record["parameters"])
     variant = list(data["options"]).index(selections[active_part])
     cfg = json.dumps({"part": active_part, "color": option["color"], "shape": option["shape"], "variant": variant,
                       "diffuser_boxes": diffuser_geometry(variant, option["shape"]) if active_part == "diffuser" else None}).replace("<", "\\u003c")
     return PART_PREVIEW_HTML.replace("__CFG__", cfg).replace("__MODEL__", PART_MODEL_JS)
+
 
 
 def render_part_description(active_part, parts):
@@ -285,7 +409,7 @@ def render_part_description(active_part, parts):
 def render_selected_part_preview(parts, selections, active_part):
     data = parts[active_part]
     option = data["options"][selections[active_part]]
-    st.markdown(f"<div class='flow-arrow'>↓ 차량에서 선택한 위치 ↓</div><div class='preview-shell'><div class='preview-head'><span class='preview-title'>SELECTED PART · {data['name'].upper()}</span><span class='preview-current'>장착 중 · {option['label']}</span></div></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='flow-arrow'>↓ 차량에서 선택한 위치 ↓</div><div class='preview-shell'><div class='preview-head'><span class='preview-title'>SELECTED PART · {data['name'].upper()}</span><span class='preview-current'>장착 중 · {html.escape(option['label'])}</span></div></div>", unsafe_allow_html=True)
     components.html(build_part_preview_html(parts, selections, active_part), height=255, scrolling=False)
     render_part_description(active_part, parts)
 
@@ -414,25 +538,50 @@ def render_option_svg(part_key, variant, color, shape=1.0):
     return f'<svg class="part-svg" viewBox="0 0 200 125" style="--pc:{color}" aria-label="옵션별 파츠 모습">{body}</svg>'
 
 
+def equip_option(parts, active_part, option_key):
+    st.session_state.change_before = calculate_car_performance(parts, st.session_state.selections)
+    st.session_state.selections[active_part] = option_key
+    st.session_state.last_changed_part = active_part
+    # 명시적인 장착 변경 시 새 경기 iframe을 준비합니다. 진행 중 물리는 수정하지 않습니다.
+    st.session_state.pop("f1_component_token", None)
+    st.session_state.pop("f1_component_folder", None)
+    st.session_state["f1_race_phase"] = "preview"
+    st.rerun()
+
+
 def render_part_options(parts, active_part, selections):
     data = parts[active_part]
     st.markdown("<div class='section-label'>옵션을 비교하고 장착하세요</div>", unsafe_allow_html=True)
-    columns = st.columns(len(data["options"]), gap="small")
-    for variant, ((option_key,option),column) in enumerate(zip(data["options"].items(),columns)):
+    base_options = [(key, value) for key, value in data["options"].items() if "custom" not in value]
+    columns = st.columns(len(base_options), gap="small")
+    for variant, ((option_key, option), column) in enumerate(zip(base_options, columns)):
         with column:
-            tooltip = html.escape(option["explanation"],quote=True)
-            components.html(build_option_projection_html(active_part,variant,option['color'],option['shape']),height=125,scrolling=False)
-            st.markdown(f"<div class='option-name'><span class='hover-tip'>{option['label']} ⓘ<span class='tip-box'>{tooltip}</span></span></div><div class='option-desc'>{html.escape(option['explanation'])}</div>",unsafe_allow_html=True)
+            tooltip = html.escape(option["explanation"], quote=True)
+            components.html(build_option_projection_html(active_part, variant, option['color'], option['shape']), height=125, scrolling=False)
+            st.markdown(f"<div class='option-name'><span class='hover-tip'>{html.escape(option['label'])} ⓘ<span class='tip-box'>{tooltip}</span></span></div><div class='option-desc'>{html.escape(option['explanation'])}</div>", unsafe_allow_html=True)
             if selections[active_part] == option_key:
-                st.markdown("<div class='installed'>장착 중 ✓</div>",unsafe_allow_html=True)
-            elif st.button("이 파츠 장착",key=f"equip_{active_part}_{option_key}",use_container_width=True):
-                st.session_state.change_before = calculate_car_performance(parts,st.session_state.selections)
-                st.session_state.selections[active_part] = option_key
-                st.session_state.last_changed_part = active_part
-                st.rerun()
-    render_advantages_and_disadvantages(parts,active_part,selections[active_part])
+                st.markdown("<div class='installed'>장착 중 ✓</div>", unsafe_allow_html=True)
+            elif st.button("이 파츠 장착", key=f"equip_{active_part}_{option_key}", use_container_width=True):
+                equip_option(parts, active_part, option_key)
+    custom_keys = [key for key, value in data["options"].items() if "custom" in value]
+    if custom_keys:
+        st.markdown("<div class='section-label'>MY CUSTOM PARTS · 사용자 제작 파츠</div>", unsafe_allow_html=True)
+        selected = selections[active_part]
+        choice = st.selectbox("제작한 파츠 선택", custom_keys,
+            index=custom_keys.index(selected) if selected in custom_keys else 0,
+            format_func=lambda key: data["options"][key]["label"] + " · " + key[-6:],
+            key=f"garage_custom_choice_{active_part}")
+        option = data["options"][choice]
+        components.html(build_part_preview_html(parts, {**selections, active_part: choice}, active_part), height=225, scrolling=False)
+        st.caption("파츠 점수: " + " / ".join(f"{metric} {value}" for metric,value in zip(METRICS, option["scores"])))
+        if selected == choice:
+            st.success("이 사용자 제작 파츠가 장착되어 있습니다.")
+        elif st.button("선택한 제작 파츠 장착", key=f"equip_custom_{active_part}", use_container_width=True):
+            equip_option(parts, active_part, choice)
+    render_advantages_and_disadvantages(parts, active_part, selections[active_part])
     option = data["options"][selections[active_part]]
-    st.markdown(f"<div class='result-line'>💡 <b>이 파츠의 특징</b><br>{html.escape(option['explanation'])}</div>",unsafe_allow_html=True)
+    st.markdown(f"<div class='result-line'>💡 <b>이 파츠의 특징</b><br>{html.escape(option['explanation'])}</div>", unsafe_allow_html=True)
+
 
 
 def render_part_detail(parts, active_part, selections):
@@ -476,6 +625,9 @@ def open_parts_lab():
 
 
 def main():
+    if st.session_state.get("app_view") == "custom_race":
+        run_custom_race()
+        return
     st.set_page_config(page_title="F1 RACING SIMULATOR",page_icon="🏎️",layout="wide",initial_sidebar_state="collapsed")
     apply_game_css()
     if "app_view" not in st.session_state:
@@ -498,7 +650,7 @@ def main():
         with right:
             st.markdown("<div class='home-card home-locked'><h3>🏎️ 레이싱 시뮬레이션</h3><p>"+("설계한 차량으로 테스트 서킷을 달려보세요." if ready else "🔒 먼저 차량을 설계해 주세요.")+"</p></div>",unsafe_allow_html=True)
             if st.button("레이싱 시뮬레이션",disabled=not ready,help=None if ready else "먼저 차량을 설계해 주세요.",use_container_width=True):
-                st.switch_page("pages/racing.py")
+                start_race()
         if st.button("🤖 AI 레이스 엔지니어와 대화하기",key="home_ai_engineer",use_container_width=True):
             open_ai_engineer()
         return
@@ -507,6 +659,14 @@ def main():
     defaults = {key:list(data["options"])[1] for key,data in parts.items()}
     if "selections" not in st.session_state:
         st.session_state.selections = defaults
+    missing = [key for key, value in st.session_state.selections.items()
+               if key in parts and value not in parts[key]["options"]]
+    if missing:
+        for key in missing:
+            st.session_state.selections[key] = defaults[key]
+        st.session_state.pop("change_before", None)
+        st.session_state.last_changed_part = None
+        st.warning("현재 라이브러리에서 찾을 수 없는 파츠를 기본 균형형으로 복원했습니다. 백업이 있다면 파츠 제작 페이지에서 가져오세요.")
     query_part = st.query_params.get("part")
     if query_part in parts:
         st.session_state.active_part = query_part
@@ -527,7 +687,7 @@ def main():
     nav_race,nav_home,nav_ai = st.columns(3)
     with nav_race:
         if st.button("🏎️ 레이싱 시뮬레이션 시작",disabled=not(isinstance(st.session_state.get("my_car_config"),dict) and isinstance(st.session_state.get("my_car_performance"),dict)),use_container_width=True):
-            st.switch_page("pages/racing.py")
+            start_race()
     with nav_home:
         if st.button("🏠 처음 화면으로 돌아가기",use_container_width=True):
             st.session_state.app_view = "home"
@@ -540,8 +700,10 @@ def main():
     with left:
         render_part_menu(parts,active_part)
         # 새 버튼: 기존 왼쪽 SELECTED 표시 바로 아래. 기존 공통 버튼 스타일 사용.
-        if st.button("🛠️ 나만의 파츠 직접 제작하기",key="garage_open_custom_parts",use_container_width=True):
-            open_parts_lab()
+        with st.container(key="parts_cta"):
+            st.caption("CUSTOM PARTS LAB · 새 핵심 기능")
+            if st.button("🛠️ 나만의 파츠 직접 제작하기", key="garage_open_custom_parts", use_container_width=True):
+                open_parts_lab()
     with center:
         st.markdown("<div class='section-label'>3D CAR / DRAG TO EXPLORE</div>",unsafe_allow_html=True)
         render_3d_car(parts,selections,active_part)
