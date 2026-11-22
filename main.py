@@ -237,6 +237,36 @@ h1,h2,h3,.race{font-family:'Oxanium','Noto Sans KR',sans-serif}
 .stApp .st-key-parts_cta div[data-testid="stButton"] button *{color:#FFFFFF!important;-webkit-text-fill-color:#FFFFFF!important;font-size:16px!important;font-weight:800!important}
 .stApp .st-key-parts_cta div[data-testid="stButton"] button:hover{background:linear-gradient(120deg,#ed214b,#ff5878)!important;border-color:#FFFFFF!important;box-shadow:0 8px 30px #ff315870!important;transform:translateY(-1px)}
 .stApp .st-key-parts_cta div[data-testid="stButton"] button:focus-visible{outline:3px solid #FFFFFF!important;outline-offset:3px}
+
+/* Explicit surface contracts: dark panels, light editable controls. */
+.stApp{color:#D5DCE5!important;color-scheme:dark}
+.stApp h1,.stApp h2,.stApp h3,.stApp h4{color:#FFFFFF!important}
+.stApp [data-testid="stMarkdownContainer"] p,.stApp [data-testid="stMarkdownContainer"] li,
+[data-testid="stCaptionContainer"],[data-testid="stWidgetLabel"] p{color:#D5DCE5!important}
+[data-testid="stTextInput"] [data-baseweb="input"], [data-testid="stNumberInput"] [data-baseweb="input"],
+[data-baseweb="input"]>div,[data-baseweb="select"]>div{background:#FFFFFF!important;color:#111111!important;color-scheme:light!important}
+.stApp input:not([type="range"]):not([type="checkbox"]),.stApp textarea,
+[data-baseweb="select"] [role="combobox"], [data-baseweb="select"]>div *{
+background-color:#FFFFFF!important;color:#111111!important;-webkit-text-fill-color:#111111!important;caret-color:#111111!important}
+input::placeholder,textarea::placeholder{color:#666666!important;-webkit-text-fill-color:#666666!important;opacity:1!important}
+[data-baseweb="popover"] [role="listbox"],[data-baseweb="popover"] [role="option"],
+[data-baseweb="popover"] [role="option"] *,[data-baseweb="menu"],[data-baseweb="menu"] li,[data-baseweb="menu"] li *{
+background:#FFFFFF!important;color:#111111!important;-webkit-text-fill-color:#111111!important}
+[data-baseweb="popover"] [role="option"]:hover,[data-baseweb="menu"] li:hover{background:#e3eaf2!important}
+[data-testid="stSlider"] p,[data-testid="stSliderThumbValue"],[data-testid="stTickBar"] *,
+[data-testid="stSlider"] [data-testid="stWidgetLabel"] *{color:#D5DCE5!important;-webkit-text-fill-color:#D5DCE5!important}
+[data-testid="stTooltipContent"]{background:#142031!important;color:#FFFFFF!important}
+[data-testid="stAlert"], [data-testid="stExpander"], [data-testid="stTable"]{background:#101923!important;color:#D5DCE5!important;border-color:#435469!important}
+[data-testid="stAlert"] *,[data-testid="stExpander"] summary *,[data-testid="stMetricLabel"] *,[data-testid="stMetricValue"] *{color:#D5DCE5!important}
+[data-testid="stTable"] th,[data-testid="stTable"] td,.stApp table th,.stApp table td{background:#101923!important;color:#D5DCE5!important;border-color:#435469!important}
+[data-testid="stButton"] button,[data-testid="stDownloadButton"] button,[data-testid="stFormSubmitButton"] button{background-color:#142031;color:#FFFFFF!important}
+[data-testid="stButton"] button *,[data-testid="stDownloadButton"] button *,[data-testid="stFormSubmitButton"] button *{color:#FFFFFF!important;-webkit-text-fill-color:#FFFFFF!important}
+[data-testid="stNumberInput"] button,[data-testid="stNumberInput"] button *{background:#FFFFFF!important;color:#111111!important;-webkit-text-fill-color:#111111!important}
+[data-testid="stJson"]{background:#101923!important;color:#D5DCE5!important}
+[data-testid="stJson"] span,[data-testid="stJson"] li{color:#D5DCE5!important}
+.perf-help,.option-desc,.setup-sub,.center-note,.footnote,.option-mini,.step{color:#BAC7D6!important}
+.why,.result-line,.change-table,.change-row,.part-role,.lab-note,.lab-tag,.lab-section{color:#D5DCE5!important}
+.same{color:#BAC7D6!important}
 </style>""", unsafe_allow_html=True)
 
 
@@ -374,7 +404,7 @@ function populatePart(g,cfg,m,dark){
 }
 '''
 
-PART_PREVIEW_HTML = r'''<!doctype html><html><head><style>*{box-sizing:border-box}html,body,#p{margin:0;width:100%;height:100%;overflow:hidden;background:radial-gradient(circle,#24313d,#090d12 70%)}canvas{display:block}#tag{position:absolute;left:14px;bottom:10px;color:#8d9baa;font:10px Arial;letter-spacing:1px}</style><script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.164.1/build/three.module.js","three/addons/":"https://unpkg.com/three@0.164.1/examples/jsm/"}}</script></head><body><div id="p"></div><div id="tag">DRAG TO INSPECT · 3D PART MODEL</div><script type="module">
+PART_PREVIEW_HTML = r'''<!doctype html><html><head><style>*{box-sizing:border-box}html,body,#p{margin:0;width:100%;height:100%;overflow:hidden;background:radial-gradient(circle,#24313d,#090d12 70%)}canvas{display:block}#tag{position:absolute;left:14px;bottom:10px;color:#D5DCE5;font:10px Arial;letter-spacing:1px}</style><script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.164.1/build/three.module.js","three/addons/":"https://unpkg.com/three@0.164.1/examples/jsm/"}}</script></head><body><div id="p"></div><div id="tag">DRAG TO INSPECT · 3D PART MODEL</div><script type="module">
 import * as THREE from 'three';import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 const cfg=__CFG__,root=document.getElementById('p'),scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(36,root.clientWidth/root.clientHeight,.1,50);camera.position.set(4,2.6,5.5);
 const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setSize(root.clientWidth,root.clientHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;root.appendChild(renderer.domElement);
@@ -421,26 +451,45 @@ def calculate_option_difference(parts, active_part, option_key):
     return {metric: selected-baseline for metric, selected, baseline in zip(METRICS, options[option_key]["scores"], options[baseline_key]["scores"])}
 
 
+def display_number(value, signed=False):
+    return parts_lab_module().display_number(value, signed)
+
+
 def generate_part_advantages(option_difference):
-    return [f"✓ {metric} ↑ {value}" for metric,value in option_difference.items() if value > 0][:3] or ["✓ 여러 성능의 균형 유지"]
+    return [f"✓ {metric} ↑ {display_number(value)}" for metric,value in option_difference.items() if value >= 0.05] or ["표시되는 성능 증가 없음"]
+
+
 
 
 def generate_part_disadvantages(option_difference):
-    return [f"△ {metric} ↓ {abs(value)}" for metric,value in option_difference.items() if value < 0][:3] or ["△ 뚜렷한 성능 손실 없음"]
+    return [f"△ {metric} ↓ {display_number(abs(value))}" for metric,value in option_difference.items() if value <= -0.05] or ["표시되는 성능 감소 없음"]
+
+
 
 
 def generate_change_explanation(changed_part, parts, selections, differences):
     if not changed_part:
-        return "파츠를 장착하면 실제 주행에서 무엇이 달라지는지 알려드려요."
-    if differences.get("그립",0) > 0:
-        return "그립이 증가해 타이어가 트랙을 더 잘 붙잡으므로 코너와 제동 상황에서 차량을 제어하기 쉬워졌어요."
-    if differences.get("다운포스",0) > 0 and differences.get("최고속도",0) < 0:
-        return "다운포스가 증가해 코너에서는 더 안정적으로 달릴 수 있지만, 공기저항도 커져 직선 최고속도는 조금 줄어들 수 있어요."
-    if differences.get("최고속도",0) > 0 and differences.get("다운포스",0) < 0:
-        return "공기저항을 줄이는 방향이라 직선에서는 더 빠르지만, 다운포스가 감소해 코너에서는 조금 불안정할 수 있어요."
-    if differences.get("제동",0) > 0:
-        return "제동 성능이 좋아져 더 늦게 브레이크를 밟고도 원하는 코너 진입 속도로 줄이기 쉬워졌어요."
-    return parts[changed_part]["options"][selections[changed_part]]["explanation"]
+        return "파츠를 장착하면 이전 차량 설정과의 성능 변화를 표시합니다."
+    option = parts[changed_part]["options"][selections[changed_part]]
+    lab = parts_lab_module()
+    lines = []
+    if "custom" in option:
+        record = option["custom"]
+        lines.append(lab.describe_parameters(record["part_type"], record["parameters"]))
+        lines.append("균형형 파츠 대비 적용 점수: " + lab.describe_deltas(calculate_option_difference(parts, changed_part, selections[changed_part])))
+    lines.append("이전 장착 상태 대비 전체 차량: " + lab.describe_deltas(differences))
+    # 원인을 개별 파라미터로 단정하지 않고 실제 점수의 장단점만 설명합니다.
+    if differences.get("최고속도", 0) <= -0.05:
+        lines.append("직선 최고속도 점수가 낮아지는 변화입니다.")
+    if differences.get("최고속도", 0) >= 0.05:
+        lines.append("직선 최고속도 점수가 높아지는 변화입니다.")
+    if differences.get("코너링", 0) >= 0.05:
+        lines.append("코너링 점수가 개선되었습니다.")
+    if differences.get("코너링", 0) <= -0.05:
+        lines.append("코너링 점수가 낮아졌습니다.")
+    return " ".join(lines)
+
+
 
 
 def render_change_summary(current, previous, differences, changed_part, parts, selections):
@@ -451,7 +500,7 @@ def render_change_summary(current, previous, differences, changed_part, parts, s
         d = differences[metric]
         if d:
             klass, arrow = ("up","↑") if d > 0 else ("down","↓")
-            rows += f"<div class='change-row'><span>{METRIC_ENGLISH[metric]}</span><span>{previous[metric]}</span><span>{current[metric]}</span><span class='{klass}'>{arrow}{abs(d)}</span></div>"
+            rows += f"<div class='change-row'><span>{METRIC_ENGLISH[metric]}</span><span>{display_number(previous[metric])}</span><span>{display_number(current[metric])}</span><span class='{klass}'>{arrow}{display_number(abs(d))}</span></div>"
     explanation = generate_change_explanation(changed_part, parts, selections, differences)
     st.markdown(f"<div class='section-label'>{parts[changed_part]['name'].upper()} 변경 결과</div><div class='change-table'><div class='change-row'><span>성능</span><span>BEFORE</span><span>AFTER</span><span>CHANGE</span></div>{rows}</div><div class='result-line'>💡 <b>어떤 변화가 생겼나요?</b><br>{html.escape(explanation)}</div>", unsafe_allow_html=True)
 
@@ -573,7 +622,7 @@ def render_part_options(parts, active_part, selections):
             key=f"garage_custom_choice_{active_part}")
         option = data["options"][choice]
         components.html(build_part_preview_html(parts, {**selections, active_part: choice}, active_part), height=225, scrolling=False)
-        st.caption("파츠 점수: " + " / ".join(f"{metric} {value}" for metric,value in zip(METRICS, option["scores"])))
+        st.caption("파츠 점수: " + " / ".join(f"{metric} {display_number(value)}" for metric,value in zip(METRICS, option["scores"])))
         if selected == choice:
             st.success("이 사용자 제작 파츠가 장착되어 있습니다.")
         elif st.button("선택한 제작 파츠 장착", key=f"equip_custom_{active_part}", use_container_width=True):
@@ -600,11 +649,11 @@ def render_performance_panel(performance, previous_performance, differences, cha
     st.markdown("<div class='section-label'>02 / CAR PERFORMANCE</div>",unsafe_allow_html=True)
     for metric in METRICS:
         value,difference = performance[metric],differences[metric]
-        delta = f"<span class='up'>↑ {difference}</span>" if difference > 0 else f"<span class='down'>↓ {abs(difference)}</span>" if difference < 0 else "<span class='same'>━</span>"
-        st.markdown(f"<div class='perf'><div class='perf-top'><div><div class='perf-name'>{METRIC_ENGLISH[metric]}</div><div class='perf-help'>{render_physics_tooltip(metric)}</div></div><div class='perf-num'>{value} {delta}</div></div><div class='track'><div class='fill' style='width:{value}%'></div></div></div>",unsafe_allow_html=True)
+        delta = f"<span class='up'>↑ {display_number(difference)}</span>" if difference > 0 else f"<span class='down'>↓ {display_number(abs(difference))}</span>" if difference < 0 else "<span class='same'>━</span>"
+        st.markdown(f"<div class='perf'><div class='perf-top'><div><div class='perf-name'>{METRIC_ENGLISH[metric]}</div><div class='perf-help'>{render_physics_tooltip(metric)}</div></div><div class='perf-num'>{display_number(value)} {delta}</div></div><div class='track'><div class='fill' style='width:{value}%'></div></div></div>",unsafe_allow_html=True)
     if changed_part:
         option = parts[changed_part]["options"][selections[changed_part]]
-        st.markdown(f"<div class='why'><b>왜 변했나요?</b><br>{html.escape(option['explanation'])}</div>",unsafe_allow_html=True)
+        st.markdown(f"<div class='why'><b>왜 변했나요?</b><br>{html.escape(generate_change_explanation(changed_part,parts,selections,differences))}</div>",unsafe_allow_html=True)
     render_change_summary(performance,previous_performance,differences,changed_part,parts,selections)
     st.markdown("<div class='footnote'>0~100은 실제 측정값이 아니라 물리적 경향을 쉽게 비교하기 위한 학습용 게임 지표입니다.</div>",unsafe_allow_html=True)
 
