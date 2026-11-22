@@ -469,25 +469,19 @@ def generate_part_disadvantages(option_difference):
 
 def generate_change_explanation(changed_part, parts, selections, differences):
     if not changed_part:
-        return "파츠를 장착하면 이전 차량 설정과의 성능 변화를 표시합니다."
+        return "파츠를 장착하면 달라진 점을 알려드려요."
     option = parts[changed_part]["options"][selections[changed_part]]
-    lab = parts_lab_module()
-    lines = []
+    previous = st.session_state.get("explanation_previous_part", {})
     if "custom" in option:
         record = option["custom"]
-        lines.append(lab.describe_parameters(record["part_type"], record["parameters"]))
-        lines.append("균형형 파츠 대비 적용 점수: " + lab.describe_deltas(calculate_option_difference(parts, changed_part, selections[changed_part])))
-    lines.append("이전 장착 상태 대비 전체 차량: " + lab.describe_deltas(differences))
-    # 원인을 개별 파라미터로 단정하지 않고 실제 점수의 장단점만 설명합니다.
-    if differences.get("최고속도", 0) <= -0.05:
-        lines.append("직선 최고속도 점수가 낮아지는 변화입니다.")
-    if differences.get("최고속도", 0) >= 0.05:
-        lines.append("직선 최고속도 점수가 높아지는 변화입니다.")
-    if differences.get("코너링", 0) >= 0.05:
-        lines.append("코너링 점수가 개선되었습니다.")
-    if differences.get("코너링", 0) <= -0.05:
-        lines.append("코너링 점수가 낮아졌습니다.")
-    return " ".join(lines)
+        reference = previous.get("parameters") if previous.get("kind") == changed_part else None
+        return parts_lab_module().explain_design(record["part_type"], record["parameters"], reference)
+    # 기본 옵션은 기존의 짧은 특성 설명을 그대로 사용합니다.
+    return option["explanation"]
+
+
+
+
 
 
 
@@ -588,6 +582,13 @@ def render_option_svg(part_key, variant, color, shape=1.0):
 
 
 def equip_option(parts, active_part, option_key):
+    previous_key = st.session_state.selections[active_part]
+    previous_option = parts[active_part]["options"][previous_key]
+    st.session_state["explanation_previous_part"] = {
+        "kind": active_part, "key": previous_key,
+        "parameters": previous_option.get("custom", {}).get("parameters"),
+        "scores": list(previous_option["scores"]),
+    }
     st.session_state.change_before = calculate_car_performance(parts, st.session_state.selections)
     st.session_state.selections[active_part] = option_key
     st.session_state.last_changed_part = active_part
