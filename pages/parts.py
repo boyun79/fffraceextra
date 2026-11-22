@@ -407,12 +407,13 @@ def main():
     initialize_state()
     st.markdown(STYLE, unsafe_allow_html=True)
     st.markdown('<div class="lab-head"><div class="lab-brand">F1 <b>RACING SIMULATOR</b> · PARTS LAB</div><div class="lab-tag">DESIGN / INSPECT / SAVE</div></div>', unsafe_allow_html=True)
-    if st.button("← 차량 설계 화면으로 돌아가기", key=f"{NS}:garage"):
+    if st.button("🔧 차량 설계 화면으로 돌아가기", key=f"{NS}:garage", use_container_width=True):
         st.session_state["app_view"] = "garage"
         try:
             st.switch_page("main.py")
         except st.errors.StreamlitAPIException:
             st.warning("main.py로 이동하지 못했습니다. 저장소 파일명과 페이지 등록 상태를 확인해 주세요.")
+    st.caption("GARAGE → PARTS LAB · 기존 차량 설정을 유지한 채 제작할 수 있습니다.")
     st.markdown('<div class="lab-note">나만의 공기역학 파츠를 설계하세요. 치수와 각도를 바꾸면 3D 형상과 예상 지표가 함께 바뀝니다.<br><b>게임 내 근사 예상치이며 실제 CFD 또는 물리적으로 검증된 설계 도구가 아닙니다.</b></div>', unsafe_allow_html=True)
     # 불러오기 콜백은 아래 위젯이 만들어지기 전에 실행됩니다.
     kind = st.selectbox("제작할 파츠", list(SPECS), key=f"{NS}:kind",
@@ -434,4 +435,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
