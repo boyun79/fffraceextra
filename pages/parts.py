@@ -545,6 +545,53 @@ def describe_parameters(kind, params):
     return "기본 설정 대비 변경: " + ", ".join(changes) + "." if changes else "기본 제작 설정을 사용 중입니다."
 
 
+def explain_design(kind, params, reference=None):
+    """실제 비교 결과에 맞춰 원인과 장단점만 최대 두 문장으로 표시합니다."""
+    params = validate_parameters(kind, params)
+    reference = validate_parameters(kind, reference) if reference is not None else defaults(kind)
+    now, before = calculate_aero(kind, params), calculate_aero(kind, reference)
+    d, r = now["downforce"]-before["downforce"], now["drag"]-before["drag"]
+    # 복합 변경 시 가장 영향이 큰 항목을 계산으로 고릅니다.
+    impacts = []
+    for field in params:
+        if params[field] == reference[field]:
+            continue
+        reverted = dict(params)
+        reverted[field] = reference[field]
+        aero = calculate_aero(kind, reverted)
+        weight = abs(now["downforce"]-aero["downforce"]) + abs(now["drag"]-aero["drag"])
+        impacts.append((weight, field))
+    if not impacts or (abs(d) < .05 and abs(r) < .05):
+        return "설정을 바꿨지만 표시되는 공력 성능은 거의 같아요."
+    field = max(impacts)[1]
+    label = SPECS[kind]["fields"][field][0]
+    action = "높여" if params[field] > reference[field] else "낮춰"
+    if field in ("width", "chord", "length"):
+        action = "늘려" if params[field] > reference[field] else "줄여"
+    subject = f"{label} 설정을 {action}"
+    if len(impacts) > 1:
+        subject = "윙 설정을 바꿔" if kind != "diffuser" else "디퓨저 형상을 바꿔"
+    if d >= .05:
+        first = subject + " 다운포스가 커졌어요."
+    elif d <= -.05:
+        first = subject + " 다운포스가 줄었어요."
+    else:
+        first = subject + " 공기저항이 달라졌어요."
+    if d >= .05 and r >= .05:
+        return first + " 코너에는 유리하지만 공기저항이 커져 직선 속도에는 불리해요."
+    if d <= -.05 and r <= -.05:
+        return first + " 코너 성능은 줄지만 공기저항이 작아져 직선 속도에는 유리해요."
+    if r >= .05:
+        return first + " 공기저항도 커져 직선 속도에는 불리해요."
+    if r <= -.05:
+        return first + " 공기저항은 줄어 직선 속도에는 유리해요."
+    if d >= .05:
+        return first + " 공기저항 변화는 거의 없이 코너 성능에 유리해요."
+    return first + " 공기저항 변화는 거의 없지만 코너 성능에는 불리해요."
+
+
+
+
 def render_performance(kind, params):
     current = calculate_aero(kind, params)
     baseline = calculate_aero(kind, defaults(kind))
@@ -559,12 +606,7 @@ def render_performance(kind, params):
     st.caption("차량 적용 점수(다운포스/최고속도/코너링/그립/제동/안정성): " + " / ".join(display_number(x) for x in scores))
     st.caption("변화량은 해당 파츠의 기본 제작 설정 대비입니다.")
     st.markdown("### 성능 변화 분석")
-    st.write(describe_parameters(kind, params))
-    st.write(describe_deltas({"예상 다운포스": current["downforce"]-baseline["downforce"],
-                              "예상 항력": current["drag"]-baseline["drag"],
-                              "효율": current["efficiency"]-baseline["efficiency"]}))
-    labels = ["다운포스", "최고속도", "코너링", "그립", "제동", "안정성"]
-    st.write("차량 적용 점수 · " + describe_deltas(dict(zip(labels, [a-b for a,b in zip(scores, BASE_SCORES[kind])]))))
+    st.write(explain_design(kind, params))
     if current["separation_risk"] > 0:
         st.warning("현재 각도에 따른 손실 페널티가 적용 중입니다. 각도를 더 높여도 다운포스가 계속 증가하지 않을 수 있습니다.")
 
