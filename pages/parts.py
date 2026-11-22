@@ -360,6 +360,74 @@ background:#FFFFFF!important;color:#111111!important;-webkit-text-fill-color:#11
 .perf-help,.option-desc,.setup-sub,.center-note,.footnote,.option-mini,.step{color:#BAC7D6!important}
 .why,.result-line,.change-table,.change-row,.part-role,.lab-note,.lab-tag,.lab-section{color:#D5DCE5!important}
 .same{color:#BAC7D6!important}
+
+/* Final component surfaces: match nested Streamlit/BaseWeb surfaces, not only wrappers. */
+.stApp [data-testid="stAlert"] [data-baseweb="notification"],
+.stApp [data-testid="stAlert"] [data-baseweb="notification"]>div,
+.stApp [data-testid="stAlertContainer"],
+.stApp [data-testid="stNotification"], .stApp [data-testid="stToast"]{
+ background:#142031!important;color:#E5EDF5!important;-webkit-text-fill-color:#E5EDF5!important;border-color:#435469!important;color-scheme:dark!important}
+.stApp [data-testid="stAlert"] [data-testid="stMarkdownContainer"],
+.stApp [data-testid="stAlert"] [data-testid="stMarkdownContainer"] *,
+.stApp [data-testid="stToast"] *{color:#E5EDF5!important;-webkit-text-fill-color:#E5EDF5!important}
+.stApp [data-testid="stExpander"] details,
+.stApp [data-testid="stExpander"] details>summary,
+.stApp [data-testid="stExpander"] details>summary:hover,
+.stApp [data-testid="stExpander"] details>summary:focus,
+.stApp [data-testid="stExpanderDetails"]{
+ background:#101923!important;color:#E5EDF5!important;color-scheme:dark!important}
+.stApp [data-testid="stExpander"] details>summary *,
+.stApp [data-testid="stExpanderDetails"] [data-testid="stMarkdownContainer"] *,
+.stApp [data-testid="stExpanderDetails"] [data-testid="stCaptionContainer"] *{
+ color:#D5DCE5!important;-webkit-text-fill-color:#D5DCE5!important}
+.stApp [data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"],
+.stApp [data-testid="stFileUploaderDropzoneInstructions"],
+.stApp [data-testid="stFileUploaderDropzone"]>div{
+ background:#152131!important;color:#D5DCE5!important;color-scheme:dark!important}
+.stApp [data-testid="stFileUploader"] section,
+.stApp [data-testid="stFileUploader"] section small,
+.stApp [data-testid="stFileUploader"] section span,
+.stApp [data-testid="stFileUploaderDropzoneInstructions"] *,
+.stApp [data-testid="stFileUploader"] [data-testid="stFileUploaderFileName"],
+.stApp [data-testid="stFileUploader"] [data-testid="stFileUploaderFileData"] *{
+ color:#D5DCE5!important;-webkit-text-fill-color:#D5DCE5!important}
+.stApp [data-testid="stFileUploader"] button,
+.stApp [data-testid="stDownloadButton"] button,
+.stApp [data-testid="stExpanderDetails"] button:not([data-testid*="NumberInput"]){
+ background:#152131!important;border:1px solid #53677E!important;color:#FFFFFF!important;opacity:1!important}
+.stApp [data-testid="stFileUploader"] button *,
+.stApp [data-testid="stDownloadButton"] button *,
+.stApp [data-testid="stExpanderDetails"] button *{
+ color:#FFFFFF!important;-webkit-text-fill-color:#FFFFFF!important;opacity:1!important}
+.stApp [data-testid="stFileUploader"] button:hover,
+.stApp [data-testid="stDownloadButton"] button:hover{background:#23364A!important;border-color:#FF3158!important}
+.stApp [data-testid="stButton"] button:disabled,
+.stApp [data-testid="stExpanderDetails"] button:disabled{background:#253140!important;color:#BAC7D6!important;opacity:1!important}
+.stApp [data-testid="stMetricLabel"],.stApp [data-testid="stMetricLabel"] *,
+.stApp [data-testid="stMetricValue"],.stApp [data-testid="stMetricValue"] *{
+ color:#F4F7FB!important;-webkit-text-fill-color:#F4F7FB!important}
+/* Streamlit delta badges can have pastel backgrounds; fix both background and text. */
+.stApp [data-testid="stMetricDelta"]{
+ background:#203043!important;color:#FFFFFF!important;-webkit-text-fill-color:#FFFFFF!important;
+ border:1px solid #51677F!important;border-radius:5px;padding:2px 6px}
+.stApp [data-testid="stMetricDelta"] *{
+ color:#FFFFFF!important;-webkit-text-fill-color:#FFFFFF!important;background:transparent!important}
+.stApp [data-testid="stMetricDelta"] svg{fill:currentColor!important}
+.stApp [data-testid="stSliderThumbValue"],.stApp [data-testid="stSliderTickBarMin"],
+.stApp [data-testid="stSliderTickBarMax"],.stApp [data-testid="stSlider"] [data-testid="stWidgetLabel"] *{
+ color:#D5DCE5!important;-webkit-text-fill-color:#D5DCE5!important}
+.stApp .installed{
+ background:#102C21!important;border:1px solid #2D9367!important;color:#77FFB5!important;
+ -webkit-text-fill-color:#77FFB5!important;padding:10px 12px;text-align:center;font-weight:700;margin:8px 0}
+.stApp .not-installed{
+ background:#142031!important;border:1px solid #435469!important;color:#D5DCE5!important;
+ -webkit-text-fill-color:#D5DCE5!important;padding:8px 12px;text-align:center;margin:8px 0}
+/* Maintain the light input contract after dark-surface rules above. */
+.stApp [data-testid="stTextInput"] input,.stApp [data-testid="stNumberInput"] input,
+.stApp [data-testid="stSelectbox"] [data-baseweb="select"]>div,
+.stApp [data-testid="stSelectbox"] [data-baseweb="select"]>div *{
+ background:#FFFFFF!important;color:#111111!important;-webkit-text-fill-color:#111111!important}
+.stApp input::placeholder{color:#666666!important;-webkit-text-fill-color:#666666!important;opacity:1!important}
 </style>"""
 
 
@@ -641,12 +709,16 @@ def render_storage(kind, params):
     if saved:
         ids = list(reversed(saved))
         st.selectbox("저장된 파츠", ids, key=f"{NS}:saved_choice",
-                     format_func=lambda ident: f"{saved[ident]['name']} · {SPECS[saved[ident]['part_type']]['name']} · {ident[:6]}")
+                     format_func=lambda ident: saved[ident]["name"])
         st.button("선택한 파츠 불러오기", key=f"{NS}:load", on_click=load_saved, use_container_width=True)
         selected = saved.get(st.session_state.get(f"{NS}:saved_choice"))
         if selected:
+            # 선택/불러오기만으로 장착 처리하지 않습니다. Garage의 실제 선택값을 확인합니다.
+            equipped = st.session_state.get("selections", {}).get(selected["part_type"]) == "custom_" + selected["id"]
+            badge = '<div class="installed">✓ 장착 중</div>' if equipped else '<div class="not-installed">미장착</div>'
+            st.markdown(badge, unsafe_allow_html=True)
             with st.expander("선택한 저장본 데이터 확인"):
-                st.json(selected)
+                st.json({key: value for key, value in selected.items() if key != "id"})
     else:
         st.caption("아직 저장된 파츠가 없습니다.")
     with st.expander("새로고침 대비 · 라이브러리 백업 및 복원"):
