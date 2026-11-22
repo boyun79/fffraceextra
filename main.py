@@ -267,6 +267,74 @@ background:#FFFFFF!important;color:#111111!important;-webkit-text-fill-color:#11
 .perf-help,.option-desc,.setup-sub,.center-note,.footnote,.option-mini,.step{color:#BAC7D6!important}
 .why,.result-line,.change-table,.change-row,.part-role,.lab-note,.lab-tag,.lab-section{color:#D5DCE5!important}
 .same{color:#BAC7D6!important}
+
+/* Final component surfaces: match nested Streamlit/BaseWeb surfaces, not only wrappers. */
+.stApp [data-testid="stAlert"] [data-baseweb="notification"],
+.stApp [data-testid="stAlert"] [data-baseweb="notification"]>div,
+.stApp [data-testid="stAlertContainer"],
+.stApp [data-testid="stNotification"], .stApp [data-testid="stToast"]{
+ background:#142031!important;color:#E5EDF5!important;-webkit-text-fill-color:#E5EDF5!important;border-color:#435469!important;color-scheme:dark!important}
+.stApp [data-testid="stAlert"] [data-testid="stMarkdownContainer"],
+.stApp [data-testid="stAlert"] [data-testid="stMarkdownContainer"] *,
+.stApp [data-testid="stToast"] *{color:#E5EDF5!important;-webkit-text-fill-color:#E5EDF5!important}
+.stApp [data-testid="stExpander"] details,
+.stApp [data-testid="stExpander"] details>summary,
+.stApp [data-testid="stExpander"] details>summary:hover,
+.stApp [data-testid="stExpander"] details>summary:focus,
+.stApp [data-testid="stExpanderDetails"]{
+ background:#101923!important;color:#E5EDF5!important;color-scheme:dark!important}
+.stApp [data-testid="stExpander"] details>summary *,
+.stApp [data-testid="stExpanderDetails"] [data-testid="stMarkdownContainer"] *,
+.stApp [data-testid="stExpanderDetails"] [data-testid="stCaptionContainer"] *{
+ color:#D5DCE5!important;-webkit-text-fill-color:#D5DCE5!important}
+.stApp [data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"],
+.stApp [data-testid="stFileUploaderDropzoneInstructions"],
+.stApp [data-testid="stFileUploaderDropzone"]>div{
+ background:#152131!important;color:#D5DCE5!important;color-scheme:dark!important}
+.stApp [data-testid="stFileUploader"] section,
+.stApp [data-testid="stFileUploader"] section small,
+.stApp [data-testid="stFileUploader"] section span,
+.stApp [data-testid="stFileUploaderDropzoneInstructions"] *,
+.stApp [data-testid="stFileUploader"] [data-testid="stFileUploaderFileName"],
+.stApp [data-testid="stFileUploader"] [data-testid="stFileUploaderFileData"] *{
+ color:#D5DCE5!important;-webkit-text-fill-color:#D5DCE5!important}
+.stApp [data-testid="stFileUploader"] button,
+.stApp [data-testid="stDownloadButton"] button,
+.stApp [data-testid="stExpanderDetails"] button:not([data-testid*="NumberInput"]){
+ background:#152131!important;border:1px solid #53677E!important;color:#FFFFFF!important;opacity:1!important}
+.stApp [data-testid="stFileUploader"] button *,
+.stApp [data-testid="stDownloadButton"] button *,
+.stApp [data-testid="stExpanderDetails"] button *{
+ color:#FFFFFF!important;-webkit-text-fill-color:#FFFFFF!important;opacity:1!important}
+.stApp [data-testid="stFileUploader"] button:hover,
+.stApp [data-testid="stDownloadButton"] button:hover{background:#23364A!important;border-color:#FF3158!important}
+.stApp [data-testid="stButton"] button:disabled,
+.stApp [data-testid="stExpanderDetails"] button:disabled{background:#253140!important;color:#BAC7D6!important;opacity:1!important}
+.stApp [data-testid="stMetricLabel"],.stApp [data-testid="stMetricLabel"] *,
+.stApp [data-testid="stMetricValue"],.stApp [data-testid="stMetricValue"] *{
+ color:#F4F7FB!important;-webkit-text-fill-color:#F4F7FB!important}
+/* Streamlit delta badges can have pastel backgrounds; fix both background and text. */
+.stApp [data-testid="stMetricDelta"]{
+ background:#203043!important;color:#FFFFFF!important;-webkit-text-fill-color:#FFFFFF!important;
+ border:1px solid #51677F!important;border-radius:5px;padding:2px 6px}
+.stApp [data-testid="stMetricDelta"] *{
+ color:#FFFFFF!important;-webkit-text-fill-color:#FFFFFF!important;background:transparent!important}
+.stApp [data-testid="stMetricDelta"] svg{fill:currentColor!important}
+.stApp [data-testid="stSliderThumbValue"],.stApp [data-testid="stSliderTickBarMin"],
+.stApp [data-testid="stSliderTickBarMax"],.stApp [data-testid="stSlider"] [data-testid="stWidgetLabel"] *{
+ color:#D5DCE5!important;-webkit-text-fill-color:#D5DCE5!important}
+.stApp .installed{
+ background:#102C21!important;border:1px solid #2D9367!important;color:#77FFB5!important;
+ -webkit-text-fill-color:#77FFB5!important;padding:10px 12px;text-align:center;font-weight:700;margin:8px 0}
+.stApp .not-installed{
+ background:#142031!important;border:1px solid #435469!important;color:#D5DCE5!important;
+ -webkit-text-fill-color:#D5DCE5!important;padding:8px 12px;text-align:center;margin:8px 0}
+/* Maintain the light input contract after dark-surface rules above. */
+.stApp [data-testid="stTextInput"] input,.stApp [data-testid="stNumberInput"] input,
+.stApp [data-testid="stSelectbox"] [data-baseweb="select"]>div,
+.stApp [data-testid="stSelectbox"] [data-baseweb="select"]>div *{
+ background:#FFFFFF!important;color:#111111!important;-webkit-text-fill-color:#111111!important}
+.stApp input::placeholder{color:#666666!important;-webkit-text-fill-color:#666666!important;opacity:1!important}
 </style>""", unsafe_allow_html=True)
 
 
@@ -610,7 +678,7 @@ def render_part_options(parts, active_part, selections):
             components.html(build_option_projection_html(active_part, variant, option['color'], option['shape']), height=125, scrolling=False)
             st.markdown(f"<div class='option-name'><span class='hover-tip'>{html.escape(option['label'])} ⓘ<span class='tip-box'>{tooltip}</span></span></div><div class='option-desc'>{html.escape(option['explanation'])}</div>", unsafe_allow_html=True)
             if selections[active_part] == option_key:
-                st.markdown("<div class='installed'>장착 중 ✓</div>", unsafe_allow_html=True)
+                st.markdown("<div class='installed'>✓ 장착 중</div>", unsafe_allow_html=True)
             elif st.button("이 파츠 장착", key=f"equip_{active_part}_{option_key}", use_container_width=True):
                 equip_option(parts, active_part, option_key)
     custom_keys = [key for key, value in data["options"].items() if "custom" in value]
@@ -619,15 +687,17 @@ def render_part_options(parts, active_part, selections):
         selected = selections[active_part]
         choice = st.selectbox("제작한 파츠 선택", custom_keys,
             index=custom_keys.index(selected) if selected in custom_keys else 0,
-            format_func=lambda key: data["options"][key]["label"] + " · " + key[-6:],
+            format_func=lambda key: data["options"][key]["label"],
             key=f"garage_custom_choice_{active_part}")
         option = data["options"][choice]
         components.html(build_part_preview_html(parts, {**selections, active_part: choice}, active_part), height=225, scrolling=False)
         st.caption("파츠 점수: " + " / ".join(f"{metric} {display_number(value)}" for metric,value in zip(METRICS, option["scores"])))
         if selected == choice:
-            st.success("이 사용자 제작 파츠가 장착되어 있습니다.")
-        elif st.button("선택한 제작 파츠 장착", key=f"equip_custom_{active_part}", use_container_width=True):
-            equip_option(parts, active_part, choice)
+            st.markdown('<div class="installed">✓ 장착 중</div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="not-installed">미장착</div>', unsafe_allow_html=True)
+            if st.button("선택한 제작 파츠 장착", key=f"equip_custom_{active_part}", use_container_width=True):
+                equip_option(parts, active_part, choice)
     render_advantages_and_disadvantages(parts, active_part, selections[active_part])
     option = data["options"][selections[active_part]]
     st.markdown(f"<div class='result-line'>💡 <b>이 파츠의 특징</b><br>{html.escape(option['explanation'])}</div>", unsafe_allow_html=True)
