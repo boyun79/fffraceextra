@@ -1,15 +1,18 @@
 """F1 CUSTOM PARTS LAB — 설치 위치: pages/parts.py
 
 실행: 프로젝트 루트에서 streamlit run main.py
-Python 의존성: 기존 streamlit만 사용(권장 1.32 이상).
+Python 의존성: 기존 streamlit만 사용(1.41 이상).
 Three.js 0.164.1은 브라우저가 CDN에서 불러옵니다. 인터넷/WebGL 필요.
 기존 main.py/racing.py/chat.py를 import하거나 수정하지 않습니다.
-기존 차량 선택/성능 키는 변경하지 않습니다. 실제 차량 장착은 미구현입니다.
+저장한 파츠는 main.py의 옵션 목록과 공통 형상/성능 모델로 공유합니다.
+자동 영구 저장은 제공하지 않으며 JSON 라이브러리 백업/복원을 지원합니다.
 모든 치수는 게임 모델용이며 FIA 규정/실측 형상/CFD를 재현하지 않습니다.
 """
 from copy import deepcopy
 from datetime import datetime, timezone
 import json
+import math
+import re
 from uuid import uuid4
 
 import streamlit as st
@@ -159,6 +162,7 @@ def airflow_descriptor(kind, p, aero):
 
 
 def make_record(kind, p, name):
+    p = validate_parameters(kind, p)
     aero = calculate_aero(kind, p)
     return {
         "schema_version": SCHEMA_VERSION,
@@ -171,9 +175,100 @@ def make_record(kind, p, name):
         "parameter_units": {key: spec[5] for key, spec in SPECS[kind]["fields"].items()},
         "performance_model": MODEL_VERSION,
         "performance": aero,
+        "scores": score_vector(kind, p),
+        "score_order": ["다운포스", "최고속도", "코너링", "그립", "제동", "안정성"],
         "airflow": airflow_descriptor(kind, p, aero),
-        "installed": False,
+        "installation_mode": "select_in_garage",
     }
+
+
+
+# 기본 점수는 main.py의 균형형과 동일합니다. 기본 파츠는 변경하지 않습니다.
+BASE_SCORES = {
+    "front_wing": [72, 77, 76, 72, 67, 76],
+    "rear_wing": [73, 76, 76, 70, 64, 78],
+    "diffuser": [77, 80, 79, 71, 64, 83],
+}
+
+
+def validate_parameters(kind, params):
+    if kind not in SPECS or not isinstance(params, dict):
+        raise ValueError("지원하지 않는 파츠 종류 또는 설정 구조입니다.")
+    fields = SPECS[kind]["fields"]
+    if set(params) != set(fields):
+        raise ValueError("파츠 설정 항목이 누락되었거나 알 수 없는 항목이 있습니다.")
+    result = {}
+    for key, value in params.items():
+        _, low, high, default, step, unit = fields[key]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            raise ValueError(f"{key}: 유효한 숫자가 필요합니다.")
+        if value < low or value > high or abs((value-low)/step-round((value-low)/step)) > 1e-7:
+            raise ValueError(f"{key}: 허용 범위나 조절 간격이 맞지 않습니다.")
+        result[key] = int(value)
+    return result
+
+
+def score_vector(kind, params):
+    """기존 6개 게임 지표에 연결. 기존 기본값은 불변, CFD/실측값 아님.
+    제작 기본 형상을 균형형 점수에 고정하고 공력 지표의 상대 차이를 반영합니다.
+    항력은 기존 레이스가 소비하는 최고속도 점수로 매핑합니다.
+    """
+    params = validate_parameters(kind, params)
+    now, base = calculate_aero(kind, params), calculate_aero(kind, defaults(kind))
+    d, r = now["downforce"]-base["downforce"], now["drag"]-base["drag"]
+    delta = [0.70*d, -0.65*r, 0.50*d, 0.20*d, 0.12*d, 0.35*d]
+    return [round(clamp(score+change), 2) for score, change in zip(BASE_SCORES[kind], delta)]
+
+
+def validate_record(record):
+    if not isinstance(record, dict) or record.get("schema_version") != SCHEMA_VERSION:
+        raise ValueError("지원하지 않는 저장 형식입니다.")
+    kind = record.get("part_type")
+    params = validate_parameters(kind, record.get("parameters"))
+    name = record.get("name")
+    ident = record.get("id")
+    if not isinstance(name, str) or not 1 <= len(name.strip()) <= 60:
+        raise ValueError("파츠 이름은 1~60자여야 합니다.")
+    if not isinstance(ident, str) or not re.fullmatch(r"[0-9a-f]{32}", ident):
+        raise ValueError("파츠 ID가 올바르지 않습니다.")
+    # 파일의 임의 점수/mesh 명령을 믿지 않고 검증된 설정으로 재계산합니다.
+    clean = make_record(kind, params, name)
+    clean["id"] = ident
+    created = record.get("created_at")
+    if isinstance(created, str) and len(created) <= 64:
+        clean["created_at"] = created
+    return clean
+
+
+def library_records():
+    raw = st.session_state.get(NS, {}).get("saved", {})
+    result = {}
+    for ident, record in raw.items():
+        try:
+            clean = validate_record(record)
+            result[clean["id"]] = clean
+        except (ValueError, TypeError, KeyError):
+            continue
+    return result
+
+
+def custom_geometry_js():
+    """제작 프리뷰의 geometry 원문을 Garage/레이스에서도 그대로 사용합니다."""
+    geometry = PREVIEW_HTML.split("// CUSTOM_GEOMETRY_BEGIN", 1)[1].split("// CUSTOM_GEOMETRY_END", 1)[0]
+    return ("function populateCustomPart(parent,cfg){const p=cfg.parameters,k=cfg.part_type;"
+            "const group=new THREE.Group();parent.add(group);" + geometry + "\nreturn group;}\n"
+            "function mountCustomPart(parent,cfg){const model=populateCustomPart(parent,cfg);"
+            "model.scale.setScalar(2);model.rotation.y=Math.PI;"
+            "const anchors={front_wing:[0,-.58,3.62],rear_wing:[0,-.5,-3.15],diffuser:[0,-.92,-3.08]};"
+            "model.position.set(...anchors[cfg.part_type]);return model;}\n")
+
+
+def return_to_garage():
+    st.session_state["app_view"] = "garage"
+    try:
+        st.switch_page("main.py")
+    except st.errors.StreamlitAPIException:
+        st.warning("main.py로 이동하지 못했습니다. 페이지 경로를 확인해 주세요.")
 
 
 STYLE = """<style>
@@ -182,7 +277,7 @@ STYLE = """<style>
 [data-testid="stHeader"]{background:transparent}
 header [data-testid="stToolbar"]{visibility:hidden}
 #MainMenu,footer{display:none}
-h1,h2,h3{color:#f3f6fa!important;letter-spacing:.5px}
+h1,h2,h3{color:#FFFFFF!important;letter-spacing:.5px}
 .lab-head{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;padding:16px 20px;background:#0c1118;border:1px solid #27313d;border-top:3px solid #ff3158;margin-bottom:16px}
 .lab-brand{font:bold 24px Arial,sans-serif;letter-spacing:1px}.lab-brand b{color:#ff3158}
 .lab-tag{font:11px monospace;color:#9aa8b7;letter-spacing:2px}
@@ -195,8 +290,45 @@ h1,h2,h3{color:#f3f6fa!important;letter-spacing:.5px}
 .stButton>button,.stDownloadButton>button{width:100%;min-height:44px;background:#101923;color:#f4f7fb;border:1px solid #35465a;border-radius:4px;font-weight:700}
 .stButton>button:hover,.stDownloadButton>button:hover{color:#fff;border-color:#ff3158;background:#251824}
 .stButton>button[kind="primary"]{background:#db2146;border:1px solid #ff5677;color:white}
-[data-baseweb="input"]>div,[data-baseweb="select"]>div{background-color:#142031!important;color:#eef4fa!important;border-color:#35465a!important}
-input{color:#eef4fa!important}
+
+[data-testid="stTextInput"] [data-baseweb="input"],
+[data-testid="stTextInput"] [data-baseweb="input"]>div,
+[data-testid="stNumberInput"] [data-baseweb="input"],
+[data-testid="stNumberInput"] [data-baseweb="input"]>div,
+[data-testid="stSelectbox"] [data-baseweb="select"]>div,
+[data-testid="stMultiSelect"] [data-baseweb="select"]>div{background:#FFFFFF!important;color:#111111!important;border-color:#8190a0!important;color-scheme:light!important}
+[data-testid="stTextInput"] input,[data-testid="stNumberInput"] input,
+[data-testid="stSelectbox"] input,[data-testid="stMultiSelect"] input,
+[data-baseweb="select"] [role="combobox"],textarea{
+background:#FFFFFF!important;color:#111111!important;-webkit-text-fill-color:#111111!important;caret-color:#111111!important;color-scheme:light!important}
+input::placeholder,textarea::placeholder{color:#666666!important;-webkit-text-fill-color:#666666!important;opacity:1!important}
+[data-testid="stSelectbox"] [data-baseweb="select"]>div *,
+[data-testid="stMultiSelect"] [data-baseweb="select"]>div *{color:#111111!important;-webkit-text-fill-color:#111111!important}
+[data-baseweb="popover"] [role="listbox"], [data-baseweb="popover"] [role="option"],
+[data-baseweb="popover"] [role="option"] *, [data-baseweb="menu"], [data-baseweb="menu"] li,
+[data-baseweb="menu"] li *{background:#FFFFFF!important;color:#111111!important;-webkit-text-fill-color:#111111!important;color-scheme:light!important}
+[data-baseweb="popover"] [role="option"]:hover,[data-baseweb="menu"] li:hover{background:#e9edf2!important}
+[data-testid="stNumberInput"] button{background:#FFFFFF!important;color:#111111!important}
+[data-testid="stNumberInput"] button *{color:#111111!important;fill:currentColor!important}
+[data-testid="stTextInput"] [data-testid="stWidgetLabel"] *,[data-testid="stNumberInput"] [data-testid="stWidgetLabel"] *,[data-testid="stSelectbox"] [data-testid="stWidgetLabel"] *{color:#D5DCE5!important;-webkit-text-fill-color:#D5DCE5!important}
+[data-testid="stAlert"] p,[data-testid="stAlert"] li,[data-testid="stExpander"] summary *{color:#D5DCE5!important}
+[data-baseweb="popover"] [data-baseweb="menu"] ul,[data-baseweb="popover"] ul[role="listbox"]{background:#FFFFFF!important;color:#111111!important}
+[data-baseweb="popover"] [aria-selected="true"]{background:#dde6ef!important;color:#111111!important}
+[data-testid="stSlider"] [data-testid="stWidgetLabel"] *,
+[data-testid="stSlider"] [data-testid="stTickBar"] *,
+[data-testid="stSlider"] [data-testid="stSliderThumbValue"],
+[data-testid="stSlider"] [role="slider"]{color:#D5DCE5!important;-webkit-text-fill-color:#D5DCE5!important}
+[data-testid="stWidgetLabel"] p,[data-testid="stCaptionContainer"],.lab-note,.lab-tag,.lab-section{color:#D5DCE5!important}
+h1,h2,h3,.lab-brand{color:#FFFFFF!important}.lab-brand b{color:#FF3158!important}
+[data-testid="stButton"] button *,[data-testid="stFormSubmitButton"] button *,[data-testid="stDownloadButton"] button *{color:#FFFFFF!important;-webkit-text-fill-color:#FFFFFF!important}
+[data-testid="stFormSubmitButton"] button{background:#d91e45!important;border:1px solid #ff6b86!important;color:#FFFFFF!important;min-height:52px;width:100%;font-weight:800}
+[data-testid="stFormSubmitButton"] button:hover{background:#f42b54!important;border-color:#ffffff!important}
+[data-testid="stFileUploaderDropzone"]{background:#142031!important;color:#D5DCE5!important}
+[data-testid="stExpander"]{background:#101923!important;color:#D5DCE5!important;border-color:#35465a!important}
+.stApp [data-testid="stMarkdownContainer"] p,.stApp [data-testid="stMarkdownContainer"] li{color:#D5DCE5}
+[data-testid="stAlert"]{background:#142031!important;color:#D5DCE5!important;border:1px solid #435469!important}
+[data-testid="stTextInput"] input:disabled,[data-testid="stNumberInput"] input:disabled{background:#EEEEEE!important;color:#444444!important;-webkit-text-fill-color:#444444!important}
+
 @media(max-width:700px){[data-testid="stMainBlockContainer"]{padding:1rem .8rem 2rem}.lab-brand{font-size:19px}}
 </style>"""
 
@@ -237,6 +369,7 @@ try{
  const light=new THREE.DirectionalLight(0xffffff,3.6);light.position.set(3,5,3);scene.add(light);
  const rim=new THREE.PointLight(0xff3158,14,9);rim.position.set(-2,2,-2);scene.add(rim);
  const group=new THREE.Group();scene.add(group);
+ // CUSTOM_GEOMETRY_BEGIN
  const carbon=new THREE.MeshStandardMaterial({color:0x29333e,metalness:.65,roughness:.35,side:THREE.DoubleSide});
  const red=new THREE.MeshStandardMaterial({color:0xff3158,metalness:.5,roughness:.3,side:THREE.DoubleSide});
  const metal=new THREE.MeshStandardMaterial({color:0x9db0c2,metalness:.75,roughness:.3});
@@ -303,6 +436,7 @@ try{
   fin(-1,red);fin(1,red);
   for(let i=1;i<=p.strakes;i++)fin(-1+2*i/(p.strakes+1),carbon);
  }
+ // CUSTOM_GEOMETRY_END
  // 고정 초기 카메라 거리로 치수 변경의 시각적 차이를 유지합니다.
  const bounds=new THREE.Box3().setFromObject(group),center=bounds.getCenter(new THREE.Vector3());
  const floorY=bounds.min.y-.06;
@@ -360,33 +494,41 @@ def render_performance(kind, params):
     with columns[2]:
         st.metric("공기역학 효율 · 지표비", f"{current['efficiency']:.2f}",
                   f"{current['efficiency'] - baseline['efficiency']:+.2f}")
+    st.caption("차량 적용 점수(다운포스/최고속도/코너링/그립/제동/안정성): " + " / ".join(str(x) for x in score_vector(kind, params)))
     st.caption("변화량은 해당 파츠의 기본값 대비입니다. 효율 = 다운포스 지표 ÷ 항력 지표. 실제 양항비가 아닙니다.")
     if current["separation_risk"] > 0:
         st.warning("큰 각도에 따른 게임용 손실 페널티가 적용 중입니다. 각도를 더 높여도 다운포스가 계속 증가하지 않을 수 있습니다.")
     with st.expander("예상치의 의미와 모델 한계"):
         st.write("같은 설정값을 3D 형상과 성능 계산에 함께 사용합니다. 치수·각도 등에 따른 경향을 임의의 수식으로 비교하며, 결과는 0~100으로 제한합니다. 포화 구간에서는 형상이 변해도 점수가 같을 수 있습니다.")
-        st.write("실제 압력·힘(N)·항력계수·속도·랩타임을 계산하지 않습니다. 파츠 간 상호작용과 플로어 효과는 미반영이며 서로 다른 종류의 파츠 점수를 합산하면 안 됩니다.")
+        st.write("실제 압력·힘(N)·항력계수·속도·랩타임을 계산하지 않습니다. 공력 예상치는 기존 균형형 대비 상대 변화로 6개 차량 점수에 연결됩니다. 항력은 최고속도 점수로 반영하며, 실제 CFD와 파츠 간 상호작용은 미구현입니다.")
         st.write("공기 흐름은 확장용 데이터만 준비되어 있습니다. 현재 입자 애니메이션이나 유체 해석은 제공하지 않습니다.")
 
 
 def render_storage(kind, params):
     st.markdown('<div class="lab-section">03 / CUSTOM PART LIBRARY</div>', unsafe_allow_html=True)
     with st.form(f"{NS}:save_form", clear_on_submit=False):
-        name = st.text_input("파츠 이름", max_chars=60, placeholder="예: Monaco Front V1")
-        submitted = st.form_submit_button("SAVE CUSTOM PART · 새 파츠 저장", use_container_width=True)
+        name = st.text_input("파츠 이름", max_chars=60, placeholder="예: Front Wing Custom 01")
+        submitted = st.form_submit_button("내 차량에 파츠 추가하기", use_container_width=True)
     if submitted:
-        if not name.strip():
-            st.warning("저장할 파츠 이름을 입력해 주세요.")
-        elif len(st.session_state[NS]["saved"]) >= 100:
-            st.warning("이 세션에는 최대 100개까지 저장할 수 있습니다. 현재 설정은 JSON으로 내려받을 수 있습니다.")
-        else:
+        try:
+            if not name.strip():
+                raise ValueError("저장할 파츠 이름을 입력해 주세요.")
+            if len(st.session_state[NS]["saved"]) >= 100:
+                raise ValueError("이 세션에는 최대 100개까지 저장할 수 있습니다.")
             record = make_record(kind, params, name)
             st.session_state[NS]["saved"][record["id"]] = record
-            st.success(f"‘{record['name']}’ 저장 완료 · 같은 이름도 별도 버전으로 저장합니다.")
-    preview_record = make_record(kind, params, name.strip() or SPECS[kind]["name"] + " Draft")
-    st.download_button("현재 설정 JSON 내려받기", data=json.dumps(preview_record, ensure_ascii=False, indent=2),
-                       file_name=f"{kind}_custom.json", mime="application/json", use_container_width=True)
-    saved = st.session_state[NS]["saved"]
+            st.session_state[NS]["last_added"] = record["id"]
+            st.success(f"‘{record['name']}’을 차량 설계 옵션에 추가했습니다. Garage에서 선택해 장착하세요.")
+        except ValueError as error:
+            st.warning(str(error))
+    if st.session_state[NS].get("last_added"):
+        if st.button("🔧 차량 설계에서 추가한 파츠 선택하기", key=f"{NS}:after_save", use_container_width=True):
+            ident = st.session_state[NS]["last_added"]
+            record = st.session_state[NS]["saved"].get(ident)
+            if record:
+                st.session_state["active_part"] = record["part_type"]
+            return_to_garage()
+    saved = library_records()
     if saved:
         ids = list(reversed(saved))
         st.selectbox("저장된 파츠", ids, key=f"{NS}:saved_choice",
@@ -398,8 +540,40 @@ def render_storage(kind, params):
                 st.json(selected)
     else:
         st.caption("아직 저장된 파츠가 없습니다.")
-    st.caption("저장/불러오기는 현재 Streamlit 세션 범위입니다. 연결 종료·서버 재시작 등으로 초기화될 수 있습니다. JSON은 백업용이며 이 버전에는 JSON 가져오기 기능이 없습니다.")
-    st.info("저장은 제작 라이브러리에만 반영됩니다. 기존 차량·레이싱·AI 상담에는 아직 적용되지 않습니다.")
+    with st.expander("새로고침 대비 · 라이브러리 백업 및 복원"):
+        st.caption("페이지 이동과 재방문은 같은 세션에서 자동 유지됩니다. 새로고침·연결 종료·서버 재시작은 세션을 초기화할 수 있습니다. Cloud 서버의 로컬 JSON을 사용자별 영구 저장소로 사용하지 않습니다.")
+        payload = {"library_version": 1, "parts": list(saved.values())}
+        st.download_button("전체 라이브러리 백업 JSON", data=json.dumps(payload, ensure_ascii=False, indent=2),
+                           file_name="f1_custom_parts_library.json", mime="application/json", use_container_width=True)
+        uploaded = st.file_uploader("라이브러리 또는 이전 단일 파츠 JSON 가져오기", type=["json"], key=f"{NS}:import_file")
+        if st.button("JSON 검증 후 라이브러리에 복원", key=f"{NS}:import_apply", disabled=uploaded is None):
+            try:
+                if uploaded.size > 2_000_000:
+                    raise ValueError("백업 파일은 2MB 이하여야 합니다.")
+                data = json.loads(uploaded.getvalue().decode("utf-8"))
+                if isinstance(data, dict) and data.get("library_version") == 1:
+                    records = data.get("parts")
+                else:
+                    records = [data]
+                if not isinstance(records, list) or len(records) > 100:
+                    raise ValueError("백업 목록은 최대 100개여야 합니다.")
+                clean = [validate_record(record) for record in records]
+                merged = dict(st.session_state[NS]["saved"])
+                added = 0
+                for record in clean:
+                    if record["id"] in merged:
+                        # 같은 백업을 반복 가져오면 중복 생성/덮어쓰지 않습니다.
+                        continue
+                    merged[record["id"]] = record
+                    added += 1
+                if len(merged) > 100:
+                    raise ValueError("복원 후 총 파츠 수가 100개를 초과합니다.")
+                st.session_state[NS]["saved"] = merged
+                st.session_state[NS]["notice"] = f"{added}개 파츠를 복원했습니다. 기존 ID는 유지했습니다."
+                st.rerun()
+            except (ValueError, TypeError, KeyError, UnicodeError) as error:
+                st.error(f"복원하지 못했습니다. 기존 라이브러리는 변경하지 않았습니다. {error}")
+    st.info("추가한 파츠는 Garage에서 별도로 장착하세요. 사용자 제작 파츠로 레이스할 때는 반드시 main.py의 레이싱 시작 버튼을 사용하세요. 기존 racing.py 파일 직접 진입은 사용자 제작 파츠를 지원하지 않습니다.")
 
 
 def main():
@@ -408,11 +582,7 @@ def main():
     st.markdown(STYLE, unsafe_allow_html=True)
     st.markdown('<div class="lab-head"><div class="lab-brand">F1 <b>RACING SIMULATOR</b> · PARTS LAB</div><div class="lab-tag">DESIGN / INSPECT / SAVE</div></div>', unsafe_allow_html=True)
     if st.button("🔧 차량 설계 화면으로 돌아가기", key=f"{NS}:garage", use_container_width=True):
-        st.session_state["app_view"] = "garage"
-        try:
-            st.switch_page("main.py")
-        except st.errors.StreamlitAPIException:
-            st.warning("main.py로 이동하지 못했습니다. 저장소 파일명과 페이지 등록 상태를 확인해 주세요.")
+        return_to_garage()
     st.caption("GARAGE → PARTS LAB · 기존 차량 설정을 유지한 채 제작할 수 있습니다.")
     st.markdown('<div class="lab-note">나만의 공기역학 파츠를 설계하세요. 치수와 각도를 바꾸면 3D 형상과 예상 지표가 함께 바뀝니다.<br><b>게임 내 근사 예상치이며 실제 CFD 또는 물리적으로 검증된 설계 도구가 아닙니다.</b></div>', unsafe_allow_html=True)
     # 불러오기 콜백은 아래 위젯이 만들어지기 전에 실행됩니다.
